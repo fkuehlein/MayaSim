@@ -1,48 +1,236 @@
 """
-test script for the model itself.
-Just checking whether it runs without
-errors, no sanity check so far
+Test functions for the model itself.
 
-TODO:
-- split up into testing single methods separately
-- write assertions for all properties calculated 
-  within test
+First a fixture is defined.
+This fixture will be run some timesteps in test_run_spinup()
+All following
 """
-import os
-import shutil
 
+import pytest
+
+import numpy as np
 import matplotlib.pyplot as plt
 
 from mayasim.model.core import Core as Model
+from .conftest import ValueStorage as val
 
-def test_model_output():
+###############################################################################
+# model instance fixture
+###############################################################################
+
+
+@pytest.fixture(scope="session", name="model_instance")
+def model_instance_fixture():
+    '''
+    TODO: cover more parameter settings
+    '''
+    test_path = 'output/test_model/'
+
+    return Model(output_path=test_path)
+
+
+###############################################################################
+# spinup fixture: test run()
+###############################################################################
+
+
+@pytest.mark.dependency()
+def test_run_spinup(model_instance):
+    '''
+    TODO: add more assertions/sanity checks
+    '''
+    # run model
+    model_instance.run(t_max = val.spinup)
+
+    # set test-internal time counter
+    val.t = val.spinup + 1
+
+
+###############################################################################
+# test all methods separately
+###############################################################################
+
+# ecosystem ###################################################################
+
+@pytest.mark.dependency()
+def test_update_precipitation(model_instance):
+    '''TODO: add sanity checks'''
+    model_instance.update_precipitation(val.t)
+
+
+@pytest.mark.dependency(depends=['test_update_precipitation'])
+def test_get_npp(model_instance):
+    '''TODO: add sanity checks'''
+    val.npp = model_instance.get_npp()
+
+
+@pytest.mark.dependency(depends=['test_get_npp'])
+def test_evolve_forest(model_instance):
+    '''TODO: add sanity checks'''
+    model_instance.evolve_forest(val.npp)
+
+
+@pytest.mark.dependency(depends=['test_evolve_forest'])
+def test_get_waterflow(model_instance):
+    '''TODO: add sanity checks'''
+    val.wf = model_instance.get_waterflow()[1]
+
+
+@pytest.mark.dependency(depends=['test_get_waterflow'])
+def test_get_ag(model_instance):
+    '''TODO: add sanity checks'''
+    val.ag = model_instance.get_ag(val.npp, val.wf)
+
+
+@pytest.mark.dependency(depends=['test_get_ag'])
+def test_get_ecoserv(model_instance):
+    '''TODO: add sanity checks'''
+    val.es = model_instance.get_ecoserv(val.ag, val.wf)
+
+
+# society #####################################################################
+
+# ag income
+
+@pytest.mark.dependency(depends=['test_get_ecoserv'])
+def test_benefit_cost(model_instance):
+    '''TODO: add sanity checks'''
+    val.bca = model_instance.benefit_cost(val.ag)
+
+
+@pytest.mark.dependency(depends=['test_benefit_cost'])
+def test_get_influenced_cells(model_instance):
+    '''TODO: add sanity checks'''
+    model_instance.get_influenced_cells()
+
+
+@pytest.mark.dependency(depends=['test_get_influenced_cells'])
+def test_get_cropped_cells(model_instance):
+    '''
+    checking for correct addition and deletion of cropped cells
+    '''
+    # update cropped cells
+    val.abandoned, val.sown = \
+        model_instance.get_cropped_cells(val.bca)
+
+
+@pytest.mark.dependency(depends=['test_get_cropped_cells'])
+def test_get_crop_income(model_instance):
+    '''TODO: add sanity checks'''
+    model_instance.get_cropped_cells(val.bca)
+
+
+# es income
+
+@pytest.mark.dependency(depends=['test_get_crop_income'])
+def test_get_eco_income(model_instance):
+    '''TODO: add sanity checks'''
+    model_instance.get_eco_income(val.es)
+
+
+@pytest.mark.dependency(depends=['test_get_eco_income'])
+def test_evolve_soil_deg(model_instance):
+    '''TODO: add sanity checks'''
+    model_instance.evolve_soil_deg()
+
+
+@pytest.mark.dependency(depends=['test_evolve_soil_deg'])
+def test_update_pop_gradient(model_instance):
+    '''TODO: add sanity checks'''
+    model_instance.update_pop_gradient()
+
+
+# trade income
+
+@pytest.mark.dependency(depends=['test_update_pop_gradient'])
+def test_get_rank(model_instance):
+    '''TODO: add sanity checks'''
+    model_instance.get_rank()
+
+
+@pytest.mark.dependency(depends=['test_get_rank'])
+def test_build_routes(model_instance):
+    '''TODO: add sanity checks'''
+    (val.built, val.lost) = model_instance.build_routes
+
+
+@pytest.mark.dependency(depends=['test_build_routes'])
+def test_get_comps(model_instance):
+    '''TODO: add sanity checks'''
+    model_instance.get_comps()
+
+
+@pytest.mark.dependency(depends=['test_get_comps'])
+def test_get_centrality(model_instance):
+    '''TODO: add sanity checks'''
+    model_instance.get_centrality()
+
+
+@pytest.mark.dependency(depends=['test_get_comps'])
+def test_get_trade_income(model_instance):
+    '''TODO: add sanity checks'''
+    model_instance.get_trade_income()
+
+
+# total income
+
+@pytest.mark.dependency(depends=['test_get_trade_income'])
+def test_get_real_income_pc(model_instance):
+    '''TODO: add sanity checks'''
+    model_instance.get_real_income_pc()
+
+
+# migration
+
+@pytest.mark.dependency(depends=['test_get_real_income_pc'])
+def test_get_pop_mig(model_instance):
+    '''TODO: add sanity checks'''
+    model_instance.get_pop_mig()
+
+
+@pytest.mark.dependency(depends=['test_get_pop_mig'])
+def test_migration(model_instance):
+    '''TODO: add sanity checks'''
+    val.new_settlements = model_instance.migration(val.es)
+
+
+@pytest.mark.dependency(depends=['test_migration'])
+def test_kill_settlements(model_instance):
+    '''TODO: add sanity checks'''
+    val.killed_settlements = model_instance.kill_settlements()
+
+
+# output ######################################################################
+
+@pytest.mark.dependency(depends=['test_kill_settlements'])
+def test_step_output(model_instance):
+    '''TODO: add sanity checks'''
+
+    # get settlement attributes
+    stm_attr_names = [n for n in dir(model_instance) if n.startswith('stm_')]
+    stm_attr_names.remove('stm_positions') # has different first dimension
+    stm_attr = [getattr(model_instance, n) for n in stm_attr_names]
+
+    # assert length of settlemnt attributes
+    assert np.all([len(a) == model_instance.n_settlements for a in stm_attr])
+
+    model_instance.step_output(
+        val.t, val.npp, val.wf, val.ag, val.es, val.bca,
+        val.abandoned, val.sown, val.built, val.lost,
+        val.new_settlements, val.killed_settlements)
+
+
+@pytest.mark.dependency(depends=['test_step_output'])
+def test_aggregates(model_instance):
     """
-    test run of Model class, saving a plot of some aggregate 
-    values to 'MayaSim/output/test_model/aggregates_plot.png'
+    save a plot of some aggregate values to
+    'MayaSim/output/test_model/aggregates_plot.png'
+    TODO: add sanity checks
     """
-    n = 30
-    timesteps = 3
-
-    # define saving location
-    comment = "test_model"
-    location = "output/" + comment + '/'
-
-    if os.path.exists(location):
-        shutil.rmtree(location)
-    os.makedirs(location)
-
-    # initialize Model
-    model = Model(n, output_path=location)
-
-    # run Model
-    model.crop_income_mode = 'sum'
-    model.r_es_sum = 0.0001
-    model.r_bca_sum = 0.25
-    model.population_control = 'False'
-    model.run(timesteps)
 
     # get aggregates
-    trj = model.get_aggregates()
+    aggs = model_instance.get_aggregates()
+    # select some measures, include time dimension
     measures = [
         'time',
         'total_population',
@@ -53,8 +241,8 @@ def test_model_output():
     # plot aggregates
     fig, axes = plt.subplots(ncols=len(measures)-1, figsize=(16, 2))
     for i, meas in enumerate(measures[1:]):
-        trj.plot('time', y=meas, ax=axes[i], title=meas)
+        aggs.plot('time', y=meas, ax=axes[i], title=meas)
 
-    fig.savefig(location + 'aggregates_plot.png')
+    fig.savefig('output/test_model/aggregates_plot.png')
 
-    assert trj.shape[0] == timesteps
+    assert aggs.shape[0] == int(aggs.at[aggs.index[-1],'time'])

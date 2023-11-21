@@ -221,7 +221,7 @@ class Core(Parameters):
         self.stm_mig_rate = [0.] * n
         self.stm_out_mig = [0] * n
         self.stm_migrants = [0] * n
-        self.stm_pioneer_set = []
+        self.pioneer_stm = []
         self.n_failed_stm = 0
 
         # index list for populated and abandoned settlements
@@ -295,7 +295,7 @@ class Core(Parameters):
         Returns a field of rainfall values for each cell.
         If veg_rainfall > 0, cel_cleared_neighs decreases rain.
 
-        TO DO: The original Model increases specialization every time
+        TODO: The original Model increases specialization every time
         rainfall decreases, assuming that trade gets more important to
         compensate for agriculture decline
         """
@@ -666,7 +666,7 @@ class Core(Parameters):
                     number_of_lost_cells = np.ceil(
                         30 / ag_pop_density[stm]).astype('int')
 
-                    # TO DO: recycle utility and cell list to do this faster.
+                    # TODO: recycle utility and cell list to do this faster.
                     # therefore, filter cropped cells from utility list
                     # and delete last n cells.
 
@@ -1032,7 +1032,7 @@ class Core(Parameters):
                 mig_pop = self.stm_out_mig[stm]
                 self.stm_migrants[stm] = mig_pop
                 self.stm_population[stm] -= mig_pop
-                self.stm_pioneer_set = \
+                self.pioneer_stm = \
                     vacant_lands[:, np.random.choice(len(vacant_lands[0]), 75)]
 
                 travel_cost = np.sqrt(
@@ -1044,8 +1044,8 @@ class Core(Parameters):
                 utility = self.mig_ES_pref * es \
                     + self.mig_TC_pref * travel_cost
                 utofpio = \
-                    utility[self.stm_pioneer_set[0], self.stm_pioneer_set[1]]
-                new_loc = self.stm_pioneer_set[:, np.nanargmax(utofpio)]
+                    utility[self.pioneer_stm[0], self.pioneer_stm[1]]
+                new_loc = self.pioneer_stm[:, np.nanargmax(utofpio)]
 
                 neighbours = np.sqrt(self.area * (
                     (new_loc[0] - self.stm_positions[0]) ** 2
