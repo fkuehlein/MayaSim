@@ -1,9 +1,18 @@
 """
 Test functions for the model itself.
 
-First a fixture is defined.
-This fixture will be run some timesteps in test_run_spinup()
-All following
+First, a fixture is defined.
+The fixture will be run some timesteps in test_run_spinup()
+All following tests simulate running a single timestep 
+method by method, thereby checking their correct functionality 
+individually.
+
+Runtime variables that are not model-attributes are stored in
+the ValueStorage class that is set up for this purpose.
+
+TODO: 
+- most test methods don't feature any assertions/sanity-checks yet,
+  add some sanity checks to actually make them test something!
 """
 
 import pytest
@@ -36,9 +45,7 @@ def model_instance_fixture():
 
 @pytest.mark.dependency()
 def test_run_spinup(model_instance):
-    '''
-    TODO: add more assertions/sanity checks
-    '''
+    '''TODO: add sanity checks'''
     # run model
     model_instance.run(t_max = val.spinup)
 
@@ -47,12 +54,12 @@ def test_run_spinup(model_instance):
 
 
 ###############################################################################
-# test all methods separately
+# test run-methods separately
 ###############################################################################
 
 # ecosystem ###################################################################
 
-@pytest.mark.dependency()
+@pytest.mark.dependency(depends=['test_run_spinup'])
 def test_update_precipitation(model_instance):
     '''TODO: add sanity checks'''
     model_instance.update_precipitation(val.t)
@@ -107,9 +114,8 @@ def test_get_influenced_cells(model_instance):
 @pytest.mark.dependency(depends=['test_get_influenced_cells'])
 def test_get_cropped_cells(model_instance):
     '''
-    checking for correct addition and deletion of cropped cells
+    TODO: check for correct addition and deletion of cropped cells
     '''
-    # update cropped cells
     val.abandoned, val.sown = \
         model_instance.get_cropped_cells(val.bca)
 
